@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css"
+    />
+
+    <!-- Compiled and minified JavaScript -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+      .overflow-x {
+        overflow-x: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div class="container">
+        <!-- Form for load and send file -->
+        <div class="row card">
+          <h5 class="col s12 center">Загрузить csv file</h5>
+          <form class="row" action="#">
+            <div id="loder-file-section" class="row s12">
+              <div class="file-field input-field col">
+                <div class="btn">
+                  <span>выбрать csv</span>
+                  <input type="file" ref="fileInput" @change="getDataLoadFiles" />
+                </div>
+                <div class="file-path-wrapper col">
+                  <input class="file-path validate" type="text" />
+                </div>
+              </div>
+            </div>
+            <div id="loder-file-section" class="row s12">
+              <div class="input-field col s6">
+                <i class="material-icons prefix">unfold_less</i>
+                <input id="delimiter" type="text" class="validate" v-model="delimiter" />
+                <label for="delimiter">Разделитель</label>
+              </div>
+              <div class="file-field input-field col">
+                <a class="waves-effect waves-light btn" @click.prevent="preloadFileData"
+                  ><i class="material-icons left">file_download</i>Preload file</a
+                >
+              </div>
+            </div>
+            <div id="send-data-section" class="row">
+              <div class="input-field col s6">
+                <i class="material-icons prefix">http</i>
+                <input id="nr-url" type="text" v-model.lazy="url" class="validate" />
+                <label for="nr-url">URL</label>
+              </div>
+              <div class="file-field input-field col">
+                <a class="waves-effect waves-light btn" @click.prevent="emulateSendData"
+                  ><i class="material-icons left">send</i>Send data</a
+                >
+              </div>
+              <div class="row s12">
+                <p class="col">
+                  <label>
+                    <input
+                      class="with-gap"
+                      name="sendMethod"
+                      type="radio"
+                      v-model="sendMethod"
+                      value="GET"
+                    />
+                    <span>GET</span>
+                  </label>
+                </p>
+                <p class="col">
+                  <label>
+                    <input
+                      class="with-gap"
+                      name="sendMethod"
+                      type="radio"
+                      v-model="sendMethod"
+                      value="POST"
+                    />
+                    <span>POST</span>
+                  </label>
+                </p>
+              </div>
+            </div>
+          </form>
+          <div class="row">
+            <div class="col">
+              <p>Отправлено:</p>
+              <p>{{countSended}}/{{countDataRows}}</p>
+            </div>
+            <div class="col">
+              <p>Ошибок при отправке:</p>
+              <p>{{countErrSend}}</p>
+            </div>
+            <div class="col" v-show="showResendButton">
+              <br />
+              <a class="waves-effect waves-light btn amber accent-4" @click.prevent="resendErrData"
+                ><i class="material-icons left">replay</i> Отправить повторно</a
+              >
+            </div>
+          </div>
+
+          <div class="row s12" v-show="errMsg || successMsg">
+            <div class="col s12">
+              <div class="card-panel col s12 red darken-3" v-if="errMsg">
+                <p class="white-text col"><i class="small material-icons">cancel</i></p>
+                <p class="white-text col">
+                  Во время отправки данных были возвращены ошибки. Не было загружено:
+                  {{errDataForResend.length}} объектов.
+                </p>
+              </div>
+              <div class="card-panel col s12 teal" v-else-if="successMsg">
+                <p class="white-text col"><i class="small material-icons">done</i></p>
+                <p class="white-text col">Все данные успешно отправлены</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Err block show not sended -->
+        <div class="card" v-if="showErrTable">
+          <div class="row center">
+            <div class="col s12">
+              <h5>Ошибки</h5>
+            </div>
+            <div class="col s12">
+              <table class="striped сщд 10">
+                <thead>
+                  <th v-for="(headVal,idx) in errHeaders" :key="'hErr'+idx">{{headVal}}</th>
+                </thead>
+                <tbody>
+                  <tr v-for="(row, ridx) in shownErrRows" :key="'rErr'+ridx">
+                    <td v-for="(val, vidx) in row" :key="'rErr'+ridx+':'+vidx">{{val}}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="col s12 center">
+              <ul class="pagination">
+                <li class="waves-effec">
+                  <a href="#!" @click.prevent="chooseErrPrevPage"
+                    ><i class="material-icons">chevron_left</i></a
+                  >
+                </li>
+                <li class="waves-effec" v-if="cntErrPages > 1">
+                  <a href="#!" @click.prevent="chooseErrFirstPage">1</a>
+                </li>
+                <li>...</li>
+                <li class="active">
+                  <a href="#!" @click.prevent>{{currErrPage}}</a>
+                </li>
+                <li>...</li>
+                <li class="waves-effect" v-if="cntErrPages > 1">
+                  <a href="#!" @click.prevent="chooseErrLastPage">{{cntErrPages}}</a>
+                </li>
+                <li class="waves-effect">
+                  <a href="#!" @click.prevent="chooseErrNextPage"
+                    ><i class="material-icons">chevron_right</i></a
+                  >
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Preload block show data to send -->
+        <div class="card" v-if="showPreloadTable">
+          <div class="row center">
+            <div class="col s12">
+              <h5>Предпоказ данных</h5>
+            </div>
+            <div class="col s12 overflow-x">
+              <table class="striped">
+                <thead>
+                  <th v-for="(headVal,idx) in headers" :key="'h'+idx">{{headVal}}</th>
+                </thead>
+                <tbody>
+                  <tr v-for="(row, ridx) in shownRows" :key="'r'+ridx">
+                    <td v-for="(val, vidx) in row" :key="'r'+ridx+':'+vidx">{{val}}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="col s12 center">
+              <ul class="pagination">
+                <li class="waves-effec">
+                  <a href="#!" @click.prevent="choosePrevPage"
+                    ><i class="material-icons">chevron_left</i></a
+                  >
+                </li>
+                <li class="waves-effec" v-if="cntPages > 1">
+                  <a href="#!" @click.prevent="chooseFirstPage">1</a>
+                </li>
+                <li>...</li>
+                <li class="active">
+                  <a href="#!" @click.prevent>{{currPage}}</a>
+                </li>
+                <li>...</li>
+                <li class="waves-effect" v-if="cntPages > 1">
+                  <a href="#!" @click.prevent="chooseLastPage">{{cntPages}}</a>
+                </li>
+                <li class="waves-effect">
+                  <a href="#!" @click.prevent="chooseNextPage"
+                    ><i class="material-icons">chevron_right</i></a
+                  >
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      new Vue({
+        el: '#app',
+        data: () => ({
+          //Main load and preload Data
+          delimiter: ';',
+          files: null,
+          loadedData: [],
+          headers: [],
+          rows: [],
+          showPreloadTable: false,
+
+          //Preload Pagination
+          cntShowRows: 5,
+          currPage: 1,
+          cntPages: 0,
+
+          //Send data
+          countSended: 0,
+          dataForSend: [],
+          errDataForResend: [],
+          sendMethod: 'GET',
+          url: 'https://',
+          successMsg: false,
+          errMsg: false,
+
+          //Err data
+          showErrTable: false,
+          showResendButton: false,
+          errHeaders: [],
+          errRowsForTable: [],
+
+          //ErrPaginations
+          cntErrRows: 5,
+          currErrPage: 1,
+          cntErrPages: 0,
+        }),
+        computed: {
+          countDataRows() {
+            return this.dataForSend.length
+          },
+          countErrSend() {
+            return this.errDataForResend.length
+          },
+
+          //Preload table
+          shownRows() {
+            let firstIdx = this.cntShowRows * this.currPage - this.cntShowRows
+            let lastIdx = firstIdx + this.cntShowRows
+            let shownRows = []
+            for (let i = firstIdx; i < lastIdx; i++) {
+              shownRows.push(this.rows[i])
+            }
+            return shownRows
+          },
+
+          //Err table
+          shownErrRows() {
+            let firstIdx = this.cntErrRows * this.currErrPage - this.cntErrRows
+            let lastIdx = firstIdx + this.cntErrRows
+            let shownErrRows = []
+            for (let i = firstIdx; i < lastIdx; i++) {
+              shownErrRows.push(this.errRowsForTable[i])
+            }
+            return shownErrRows
+          },
+        },
+        methods: {
+          clearData() {
+            this.loadedData = ''
+            this.headers = []
+            this.rows = []
+            this.dataForSend = []
+            this.countSended = 0
+            this.showPreloadTable = false
+            this.currPage = 1
+            this.cntPages = 0
+            this.successMsg = false
+          },
+          //Preload
+          async getDataLoadFiles() {
+            this.files = { ...this.$refs.fileInput.files }
+          },
+          async preloadFileData() {
+            if (!this.$refs.fileInput.files[0]) return alert('Вы не выбрали файл для загрузки')
+            if (!this.files) this.getDataLoadFiles()
+
+            this.clearErrData()
+            this.clearData()
+
+            await this.getCSV(0)
+            this.files = null
+            this.calcPages()
+            this.showPreloadTable = true
+          },
+          async getCSV(idx) {
+            let file = this.files[idx]
+            let fileData = await this.loadFileAsText(file)
+            this.loadedData = fileData.split('\r\n').filter((el) => Boolean(el))
+
+            this.setHeaders()
+            this.setRows()
+            this.setSendData()
+          },
+          setSendData() {
+            if (!this.dataForSend[0]) this.dataForSend = []
+
+            this.rows.forEach((el) => {
+              let row = el
+              let rowObj = {}
+              this.headers.forEach((el, idx) => {
+                rowObj[el] = row[idx]
+              })
+              this.dataForSend.push(rowObj)
+            })
+          },
+          setHeaders() {
+            this.headers = this.loadedData[0].split(this.delimiter)
+          },
+          setRows() {
+            this.rows = this.loadedData
+              .filter((el, idx) => idx !== 0)
+              .map((el) => el.split(this.delimiter))
+            this.loadedData = ''
+          },
+          loadFileAsText(file) {
+            const reader = new FileReader()
+            reader.readAsText(file)
+            return new Promise((res, rej) => {
+              reader.onload = function (e) {
+                res(e.target.result)
+              }
+            })
+          },
+
+          //Pagination
+          calcPages() {
+            this.cntPages = Math.ceil(this.rows.length / this.cntShowRows)
+          },
+          chooseFirstPage() {
+            this.currPage = 1
+          },
+          chooseLastPage() {
+            this.currPage = this.cntPages
+          },
+          chooseNextPage() {
+            if (this.currPage < this.cntPages) this.currPage++
+          },
+          choosePrevPage() {
+            if (this.currPage > 1) this.currPage--
+          },
+
+          //Err logic
+          calcErrPages() {
+            this.cntErrPages = Math.ceil(this.errRowsForTable.length / this.cntErrRows)
+          },
+          chooseErrFirstPage() {
+            this.currErrPage = 1
+          },
+          chooseErrLastPage() {
+            this.currErrPage = this.cntErrPages
+          },
+          chooseErrNextPage() {
+            if (this.currErrPage < this.cntErrPages) this.currErrPage++
+          },
+          chooseErrPrevPage() {
+            if (this.currErrPage > 1) this.currErrPage--
+          },
+          clearErrData() {
+            this.showErrTable = false
+            this.showResendButton = false
+            this.errHeaders = []
+            this.errRowsForTable = []
+            this.errDataForResend = []
+            this.currErrPage = 1
+            this.cntErrPages = 0
+            this.errMsg = false
+          },
+          fillErrData(idx) {
+            this.errRowsForTable.push(this.rows[idx])
+            this.errDataForResend.push(this.dataForSend[idx])
+          },
+          setErrData() {
+            this.calcErrPages()
+            this.errHeaders = this.headers
+            this.showPreloadTable = false
+            this.clearData()
+            this.showErrTable = true
+            this.showResendButton = true
+            this.errMsg = true
+          },
+          resendErrData() {
+            this.headers = this.errHeaders
+            this.rows = this.errRowsForTable
+            this.dataForSend = this.errDataForResend
+            this.clearErrData()
+            this.emulateSendData()
+          },
+
+          //Send Data
+          async sendData() {
+            const method = this.sendMethod
+            const url = this.url
+            const data = this.dataForSend
+
+            for (let i = 0; i < this.data.length; i++) {
+              let options = {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data[i]),
+              }
+
+              let response = await this.deladyBeforeSend(fetchData, url, options, 50)
+              this.countSended++
+              if (!response.ok) this.fillErrData(i)
+            }
+
+            if (this.errDataForResend.length) {
+              this.setErrData()
+            } else {
+              this.successMsg = true
+            }
+          },
+          async fetchData(resolve, reject, url = '', data = {}) {
+            const response = await fetch(url, data)
+            response = await response.json()
+            resolve(response)
+          },
+          deladyBeforeSend(f, url, data, delay = 50) {
+            return new Promise((resolve, reject) => {
+              setTimeout(() => {
+                f(resolve, reject, url, data)
+              }, delay)
+            })
+          },
+
+          //emulate
+          async emulateSendData() {
+            for (let i = 0; i < this.dataForSend.length; i++) {
+              let result = await this.emulateDelaySend((res, rej) => res(i), 50)
+              this.countSended++
+              if (!(result % 11) && result) this.fillErrData(i)
+            }
+
+            if (this.errDataForResend.length) {
+              this.setErrData()
+            } else {
+              this.successMsg = true
+            }
+          },
+          emulateDelaySend(f, delay) {
+            return new Promise((res, rej) => {
+              setTimeout(() => {
+                f(res, rej)
+              }, delay)
+            })
+          },
+        },
+      })
+    </script>
+  </body>
+</html>
