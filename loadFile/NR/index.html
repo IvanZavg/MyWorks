@@ -13,7 +13,7 @@
 
     <!-- Compiled and minified JavaScript -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
     <style>
       .overflow-x {
         overflow-x: auto;
@@ -57,7 +57,7 @@
                 <label for="nr-url">URL</label>
               </div>
               <div class="file-field input-field col">
-                <a class="waves-effect waves-light btn" @click.prevent="emulateSendData"
+                <a class="waves-effect waves-light btn" @click.prevent="sendData"
                   ><i class="material-icons left">send</i>Send data</a
                 >
               </div>
@@ -92,11 +92,11 @@
           <div class="row">
             <div class="col">
               <p>Отправлено:</p>
-              <p>{{countSended}}/{{countDataRows}}</p>
+              <p><span v-text="countSended"></span>/<span v-text="countDataRows"></span></p>
             </div>
             <div class="col">
               <p>Ошибок при отправке:</p>
-              <p>{{countErrSend}}</p>
+              <p v-text="countErrSend"></p>
             </div>
             <div class="col" v-show="showResendButton">
               <br />
@@ -112,7 +112,7 @@
                 <p class="white-text col"><i class="small material-icons">cancel</i></p>
                 <p class="white-text col">
                   Во время отправки данных были возвращены ошибки. Не было загружено:
-                  {{errDataForResend.length}} объектов.
+                  <span v-text="errDataForResend.length"></span> объектов.
                 </p>
               </div>
               <div class="card-panel col s12 teal" v-else-if="successMsg">
@@ -130,13 +130,15 @@
               <h5>Ошибки</h5>
             </div>
             <div class="col s12">
-              <table class="striped сщд 10">
+              <table class="striped 10">
                 <thead>
-                  <th v-for="(headVal,idx) in errHeaders" :key="'hErr'+idx">{{headVal}}</th>
+                  <tr>
+                    <th v-for="(headVal,idx) in errHeaders" :key="'hErr'+idx" v-text="headVal"></th>
+                  </tr>
                 </thead>
                 <tbody>
                   <tr v-for="(row, ridx) in shownErrRows" :key="'rErr'+ridx">
-                    <td v-for="(val, vidx) in row" :key="'rErr'+ridx+':'+vidx">{{val}}</td>
+                    <td v-for="(val, vidx) in row" :key="'rErr'+ridx+':'+vidx" v-text="val"></td>
                   </tr>
                 </tbody>
               </table>
@@ -153,11 +155,11 @@
                 </li>
                 <li>...</li>
                 <li class="active">
-                  <a href="#!" @click.prevent>{{currErrPage}}</a>
+                  <a href="#!" @click.prevent v-text="currErrPage"></a>
                 </li>
                 <li>...</li>
                 <li class="waves-effect" v-if="cntErrPages > 1">
-                  <a href="#!" @click.prevent="chooseErrLastPage">{{cntErrPages}}</a>
+                  <a href="#!" @click.prevent="chooseErrLastPage" v-text="cntErrPages"></a>
                 </li>
                 <li class="waves-effect">
                   <a href="#!" @click.prevent="chooseErrNextPage"
@@ -178,11 +180,13 @@
             <div class="col s12 overflow-x">
               <table class="striped">
                 <thead>
-                  <th v-for="(headVal,idx) in headers" :key="'h'+idx">{{headVal}}</th>
+                  <tr>
+                    <th v-for="(headVal,idx) in headers" :key="'h'+idx" v-text="headVal"></th>
+                  </tr>
                 </thead>
                 <tbody>
                   <tr v-for="(row, ridx) in shownRows" :key="'r'+ridx">
-                    <td v-for="(val, vidx) in row" :key="'r'+ridx+':'+vidx">{{val}}</td>
+                    <td v-for="(val, vidx) in row" :key="'r'+ridx+':'+vidx" v-text="val"></td>
                   </tr>
                 </tbody>
               </table>
@@ -199,11 +203,11 @@
                 </li>
                 <li>...</li>
                 <li class="active">
-                  <a href="#!" @click.prevent>{{currPage}}</a>
+                  <a href="#!" @click.prevent v-text="currPage"></a>
                 </li>
                 <li>...</li>
                 <li class="waves-effect" v-if="cntPages > 1">
-                  <a href="#!" @click.prevent="chooseLastPage">{{cntPages}}</a>
+                  <a href="#!" @click.prevent="chooseLastPage" v-text="cntPages"></a>
                 </li>
                 <li class="waves-effect">
                   <a href="#!" @click.prevent="chooseNextPage"
@@ -220,6 +224,7 @@
       const URL_CHECK =
         /^HTTP|HTTPS|http(s)?:\/\/(www\.)?[A-Za-z0-9]+([\-\.]{1}[A-Za-z0-9]+)*\.[A-Za-z]{2,40}(:[0-9]{1,40})?(\/.*)?$/
       const ONE_USE_HTTP_CHECK = /http[s]?:\/\//gim
+
       new Vue({
         el: '#app',
         data: () => ({
@@ -240,7 +245,7 @@
           countSended: 0,
           dataForSend: [],
           errDataForResend: [],
-          sendMethod: 'GET',
+          sendMethod: 'POST',
           url: 'https://',
           successMsg: false,
           errMsg: false,
@@ -317,7 +322,7 @@
             return { ok: true }
           },
           //Preload
-          getDataLoadFiles() {
+          async getDataLoadFiles() {
             this.files = { ...this.$refs.fileInput.files }
           },
           async preloadFileData() {
@@ -432,7 +437,7 @@
             this.rows = this.errRowsForTable
             this.dataForSend = this.errDataForResend
             this.clearErrData()
-            this.emulateSendData()
+            this.sendData()
           },
 
           //Send Data
@@ -481,7 +486,7 @@
               return data
             }
           },
-          async fetchPostData(resolve, reject, url = '', data = {}) {
+          async fetchData(resolve, reject, url = '', data = {}) {
             let response = await fetch(url, data)
             resolve(response)
           },
@@ -497,7 +502,6 @@
           async emulateSendData() {
             let check = this.checkData()
             if (!check.ok) return alert(check.msg)
-
             for (let i = 0; i < this.dataForSend.length; i++) {
               let result = await this.emulateDelaySend((res, rej) => res(i), 50)
               this.countSended++
