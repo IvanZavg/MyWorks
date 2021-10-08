@@ -481,7 +481,7 @@
               return data
             }
           },
-          async fetchPostData(resolve, reject, url = '', data = {}) {
+          async fetchData(resolve, reject, url = '', data = {}) {
             let response = await fetch(url, data)
             resolve(response)
           },

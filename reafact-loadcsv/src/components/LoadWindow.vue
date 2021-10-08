@@ -33,7 +33,7 @@
             <label for="nr-url">URL</label>
           </div>
           <div class="file-field input-field col">
-            <a class="waves-effect waves-light btn" @click.prevent="emulateSend"
+            <a class="waves-effect waves-light btn" @click.prevent="sendData"
               ><i class="material-icons left">send</i>Send data</a
             >
           </div>
@@ -66,7 +66,7 @@
         </div>
       </form>
       <InformMsg
-        :msg="inforMsg"
+        :msg="informMsg"
         :status="informMsgStatus"
         :show="showInformMsg"
         :key="showInformMsg"
@@ -116,7 +116,7 @@ export default {
     files: null,
 
     //InformMsg data
-    inforMsg: '',
+    informMsg: '',
     informMsgStatus: '',
     showInformMsg: false,
     //------------------
@@ -150,18 +150,33 @@ export default {
         this.showMsg('denger', 'Вы не выбрали файл для загрузки')
         return
       }
+
       if (!this.files) this.getDataLoadFiles()
       this.$store.dispatch('loadFileData', { file: this.files[0], delimiter: this.delimiter })
     },
 
-    sendData() {
+    async sendData() {
       this.resetData()
       if (!this.checkBeforeSend()) return
+
+      let options = {
+        url: this.url,
+        method: this.sendMethod,
+        delayms: 1000,
+      }
+
+      let res = await this.$store.dispatch('sendData', options)
+
+      if (res === 'isErrSend') {
+        this.showMsg('denger', `При отправке возникли ошибки!`)
+      } else if (res === 'isAllSendSuccess') {
+        this.showMsg('success', `Все данные успешно отправлены!`)
+      }
     },
 
     showMsg(status, msg) {
       this.informMsgStatus = status
-      this.inforMsg = msg
+      this.informMsg = msg
       this.showInformMsg = true
     },
 
@@ -185,17 +200,16 @@ export default {
     },
 
     //Emulate send
-    emulateSend() {
+    async emulateSend() {
       this.resetData()
       if (!this.checkBeforeSend()) return
-      this.$store.dispatch('emulateSendData', { delayFunc: this.emulateDelaySend, delay: 10 })
-    },
-    emulateDelaySend(f, delay) {
-      return new Promise((res, rej) => {
-        setTimeout(() => {
-          f(res, rej)
-        }, delay)
-      })
+
+      let res = await this.$store.dispatch('emulateSendData', 10)
+      if (res === 'isErrSend') {
+        this.showMsg('denger', `При отправке возникли ошибки!`)
+      } else if (res === 'isAllSendSuccess') {
+        this.showMsg('success', `Все данные успешно отправлены!`)
+      }
     },
   },
 }

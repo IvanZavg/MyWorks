@@ -1,6 +1,9 @@
 import Vue from 'vue'
 import Vuex from 'vuex'
 
+import delay from '@/plagins/delay'
+import prepareDataByMethod from '@/plagins/prepareDataToSend'
+
 Vue.use(Vuex)
 
 export default new Vuex.Store({
@@ -74,7 +77,7 @@ export default new Vuex.Store({
     resetHasErrSend(state) {
       state.hasErrSend = false
     },
-    increaseContSended(state) {
+    increaseCountSended(state) {
       state.countSended++
     },
   },
@@ -94,23 +97,57 @@ export default new Vuex.Store({
       commit('setSendData')
     },
 
-    async emulateSendData({ state, commit }, { delayFunc, delay }) {
-      commit('resetCountSend')
-      commit('resetHasErrSend')
-      let errAray = []
-
-      for (let i = 0; i < state.fileData.length; i++) {
-        let result = await delayFunc((res, rej) => res(i), delay)
-        commit('increaseContSended')
-        if (!(result % 11) && result) errAray.push(state.rows[i])
-      }
-      if (errAray.length !== 0) {
-        commit('resetAfterSendErrs', errAray)
-        commit('setSendData')
+    sendData({ state, commit }, options) {
+      return new Promise(async (resolve, reject) => {
         commit('resetCountSend')
-      } else {
-        commit('clearData')
-      }
+        commit('resetHasErrSend')
+
+        let { method, url, delayms } = options
+        let errAray = []
+
+        for (let i = 0; i < state.fileData.length; i++) {
+          let sendOptions = prepareDataByMethod(method, url, state.fileData[i])
+          let response = await fetch(sendOptions.url, sendOptions.options)
+          console.log(response)
+          commit('increaseCountSended')
+          if (!response.ok) errAray.push(state.rows[i])
+          await delay(delayms)
+        }
+
+        if (errAray.length !== 0) {
+          commit('resetAfterSendErrs', errAray)
+          commit('setSendData')
+          commit('resetCountSend')
+          resolve('isErrSend')
+        } else {
+          commit('clearData')
+          resolve('isAllSendSuccess')
+        }
+      })
+    },
+
+    emulateSendData({ state, commit }, msdelay) {
+      return new Promise(async (resolve, reject) => {
+        commit('resetCountSend')
+        commit('resetHasErrSend')
+
+        let errAray = []
+        for (let i = 0; i < state.fileData.length; i++) {
+          await delay(msdelay)
+          commit('increaseCountSended')
+          if (!(i % 11) && i) errAray.push(state.rows[i])
+        }
+
+        if (errAray.length !== 0) {
+          commit('resetAfterSendErrs', errAray)
+          commit('setSendData')
+          commit('resetCountSend')
+          resolve('isErrSend')
+        } else {
+          commit('clearData')
+          resolve('isAllSendSuccess')
+        }
+      })
     },
   },
   modules: {},
