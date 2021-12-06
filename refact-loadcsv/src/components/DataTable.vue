@@ -1,6 +1,6 @@
 <template>
   <div class="card" v-if="show">
-    <div class="row center">
+    <div class="row center table-container">
       <div class="col s12">
         <h5>{{ title }}</h5>
       </div>
@@ -83,3 +83,8 @@ export default {
   },
 }
 </script>
+<style scoped>
+.table-container {
+  overflow-x: auto;
+}
+</style>
